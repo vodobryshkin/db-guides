@@ -1,0 +1,383 @@
+#import "@preview/primeone:1.0.0": *
+
+#show: article.with(
+  title: "Как оформлять модели базы данных и SQL-код",
+  subtitle: "Оформление сущностей, связей между ними и SQL",
+  authors: (
+    (name: "Владимир Добрышкин", email: link("https://t.me/vodobryshkin")[t.me/vodobryshkin]),
+  ),
+  date: "Версия 0.1.0",
+  abstract: [Данный документ представляет из себя практическую памятку по:
+   - Нотациям Чена и Crow’s Foot.
+   - Оформлению концептуальной, логической и физической моделей.
+   - Правилам именования и стилю SQL-кода.],
+  abstract-title: "Аннотация",
+  titlepage: true,
+  toc: true,
+  toc-title: "Содержание",
+  toc-depth: 2,
+  theme: theme-lara-green
+)
+
+= Нотации
+#message(severity: "warning")[
+Перед тем, как говорить об оформлении моделей, нужно познакомиться с нотациями, в которых эти модели описывают.]
+- Для оформления концептуальной модели могут быть использованы нотация Питера Чена или Crow's foot.
+
+- Для оформления логической модели используется Crow's foot.
+
+- Для оформления физической модели используется Crow's foot.
+
+== Нотация Питера Чена
+#messages(severity: "info")[
+Система графических обозначений для ER-моделей. Она позволяет показать сущности предметной области, их свойства и связи. Питер Чен представил ER-модель и способ её изображения в 1976 году в статье _The Entity-Relationship Model—Toward a Unified View of Data_. Русский перевод можно найти #underline(link("https://citforum.ru/database/classics/chen/")[здесь]).
+]
+
+=== Основные компоненты нотации
+#let chen-symbol(
+  shape,
+  label,
+  double: false,
+  key: false,
+  derived: false,
+  size: 8pt,
+) = {
+  let w = 36mm
+  let h = if shape == "diamond" { 24mm } else { 18mm }
+
+  let pen = (
+    paint: black,
+    thickness: 0.7pt,
+    dash: if derived { "dashed" } else { "solid" },
+  )
+
+  let outline(width, height) = {
+    if shape == "rect" {
+      rect(
+        width: width,
+        height: height,
+        stroke: pen,
+        fill: none,
+      )
+    } else if shape == "diamond" {
+      polygon(
+        stroke: pen,
+        fill: none,
+        (width / 2, 0pt),
+        (width, height / 2),
+        (width / 2, height),
+        (0pt, height / 2),
+      )
+    } else {
+      ellipse(
+        width: width,
+        height: height,
+        stroke: pen,
+        fill: none,
+      )
+    }
+  }
+
+  let inner-w = w - 3mm
+  let inner-h = if shape == "diamond" {
+    h * (inner-w / w)
+  } else {
+    h - 3mm
+  }
+
+  box(width: w, height: h)[
+    #place(center + horizon, outline(w, h))
+
+    #if double {
+      place(center + horizon, outline(inner-w, inner-h))
+    }
+
+    #place(center + horizon)[
+      #set text(size: size, hyphenate: false)
+      #set par(leading: 1.5pt, first-line-indent: 0pt)
+
+      #align(center)[
+        #if key { underline(label) } else { label }
+      ]
+    ]
+  ]
+}
+
+#table(
+  columns: (1.2fr, 1.3fr, 2fr),
+  inset: 8pt,
+  align: (
+    left + horizon,
+    center + horizon,
+    left + horizon,
+  ),
+
+  table.header(
+    [*Компонент*],
+    [*Обозначение*],
+    [*Описание*],
+  ),
+
+  [Сущность],
+  chen-symbol("rect", [Сущность]),
+  [Тип объектов предметной области, о которых нужно хранить данные.],
+
+  [Связь],
+  chen-symbol("diamond", [Связь]),
+  [Ассоциация между сущностями. Может соединять две сущности.],
+
+  [Атрибут],
+  chen-symbol("ellipse", [Атрибут]),
+  [Свойство сущности или связи.]
+)
+
+=== Дополнительные компоненты нотации
+#table(
+  columns: (1.2fr, 1.3fr, 2fr),
+  inset: 8pt,
+  align: (
+    left + horizon,
+    center + horizon,
+    left + horizon,
+  ),
+
+  table.header(
+    [*Компонент*],
+    [*Обозначение*],
+    [*Описание*],
+  ),
+
+  [Слабая сущность],
+  chen-symbol(
+    "rect",
+    [Слабая \ сущность],
+    double: true,
+  ),
+  [Для идентификации её экземпляра собственных атрибутов недостаточно: требуется также ключ сущности-владельца.],
+
+  [Идентифицирующая связь],
+  chen-symbol(
+    "diamond",
+    [Идентифицирующая \ связь],
+    double: true,
+    size: 7pt,
+  ),
+  [Связь слабой сущности с сущностью-владельцем, участвующая в её идентификации.],
+
+  [Ключевой атрибут],
+  chen-symbol(
+    "ellipse",
+    [Ключевой \ атрибут],
+    key: true,
+  ),
+  [Атрибут, входящий в ключ, который однозначно определяет экземпляр сущности.],
+
+  [Многозначный атрибут],
+  chen-symbol(
+    "ellipse",
+    [Многозначный \ атрибут],
+    double: true,
+  ),
+  [Для одного экземпляра сущности может иметь несколько значений.],
+
+  [Производный атрибут],
+  chen-symbol(
+    "ellipse",
+    [Производный \ атрибут],
+    derived: true,
+  ),
+  [Атрибут, значение которого вычисляется на основе других данных.],
+)
+
+#let chen-relation(left-max, right-max, total-a: false, total-b: false) = {
+  let pen = 0.7pt + black
+  let segment(width) = curve(
+    stroke: pen, fill: none,
+    curve.move((0pt, 0pt)),
+    curve.line((width, 0pt)),
+  )
+  let node(label) = rect(
+    width: 9mm, height: 9mm, inset: 0pt,
+    stroke: pen, fill: none,
+  )[#align(center + horizon)[#label]]
+
+  box(width: 56mm, height: 17mm)[
+    #set text(size: 8pt, hyphenate: false)
+    #set par(first-line-indent: 0pt)
+
+    #place(top + left, dx: 0mm, dy: 4mm, node([А]))
+    #place(top + left, dx: 47mm, dy: 4mm, node([Б]))
+
+    #place(top + left, dx: 21mm, dy: 2.5mm)[
+      #polygon(
+        stroke: pen, fill: none,
+        (7mm, 0mm), (14mm, 6mm),
+        (7mm, 12mm), (0mm, 6mm),
+      )
+    ]
+    #place(top + left, dx: 21mm, dy: 2.5mm)[
+      #box(width: 14mm, height: 12mm)[
+        #align(center + horizon)[Связь]
+      ]
+    ]
+
+    #for offset in (if total-a { (-0.6mm, 0.6mm) } else { (0mm,) }) {
+      place(top + left, dx: 9mm, dy: 8.5mm + offset,
+        segment(if total-a { 12.7mm } else { 12mm }))
+    }
+    #for offset in (if total-b { (-0.6mm, 0.6mm) } else { (0mm,) }) {
+      place(top + left,
+        dx: if total-b { 34.3mm } else { 35mm },
+        dy: 8.5mm + offset,
+        segment(if total-b { 12.7mm } else { 12mm }))
+    }
+
+    #place(top + left, dx: 9mm, dy: 2.5mm)[
+      #box(width: 12mm, height: 3mm)[#align(center + horizon)[#left-max]]
+    ]
+    #place(top + left, dx: 35mm, dy: 2.5mm)[
+      #box(width: 12mm, height: 3mm)[#align(center + horizon)[#right-max]]
+    ]
+  ]
+}
+
+=== Связи в нотации Чена
+
+Перед рассмотрением обозначений связей определим, что такое
+кратность связи и обязательность участия в ней.
+
+#messages(severity: "info", title: "Кратность связи")[
+  Параметр, который задаёт допустимое количество экземпляров
+  одного типа сущности, которые могут быть связаны с одним экземпляром
+  другого типа. Она определяется для каждого направления связи.
+
+  Кратность может задаваться минимальным и максимальным значениями:
+  например, 0..1 означает "ноль или один" а 1..M --
+  "один или несколько". Минимальное значение показывает, обязательно
+  ли участие в связи, а максимальное -- сколько связанных экземпляров
+  допускается.
+]
+
+#table(
+  columns: (1.2fr, 2.2fr, 2.2fr),
+  inset: 8pt,
+  align: (left + horizon, center + horizon, left + horizon),
+
+  table.header([*Тип связи*], [*Обозначение*], [*Как читать*]),
+
+  [Один к одному (1:1)],
+  chen-relation([1], [1]),
+  [Каждому А соответствует не более одного Б, и наоборот. Участие обеих сторон необязательно.],
+
+  [Один ко многим (1:M)],
+  chen-relation([1], [M]),
+  [Одному А может соответствовать несколько Б. Каждому Б -- не более одного А. Участие обеих сторон необязательно.],
+
+  [Многие ко многим (M:N)],
+  chen-relation([M], [N]),
+  [Одному А может соответствовать несколько Б, а одному Б -- несколько А. Участие обеих сторон необязательно.],
+
+  [1:M. Обязательное участие А и Б],
+  chen-relation([1], [M], total-a: true, total-b: true),
+  [Каждому А соответствует не менее одного Б. Каждый Б связан ровно с одним А.],
+
+  [1:M. Обязательно только А],
+  chen-relation([1], [M], total-a: true),
+  [Каждому А соответствует хотя бы один Б. Каждый Б может быть связан с одним А или не участвовать в связи.],
+
+  [1:M. Обязательно только Б],
+  chen-relation([1], [M], total-b: true),
+  [Каждый А может быть связан с несколькими Б или не участвовать в связи. Каждый Б связан ровно с одним А.],
+)
+
+#messages(severity: "warning")[
+  Часто, на ER-диаграммах можно встретить использование только первых трёх видов связи. Чтобы схема точнее передавала правила предметной области,
+  *рекомендую* указывать не только тип связи -- 1:1, 1:M или M:N, -- но и обязательность участия каждой стороны.
+]
+
+== Нотация Crow's foot
+#messages(severity: "info")[
+Информация
+]
+
+=== Компоненты нотации
+#table(
+  columns: (1.2fr, 1.3fr, 2fr),
+  inset: 8pt,
+  align: (
+    left + horizon,
+    center + horizon,
+    left + horizon,
+  ),
+
+  table.header(
+    [*Компонент*],
+    [*Обозначение*],
+    [*Описание*],
+  ),
+
+  [Сущность],
+  chen-symbol("rect", [Сущность]),
+  [Тип объектов предметной области, о которых нужно хранить данные.],
+
+  [Связь],
+  chen-symbol("diamond", [Связь]),
+  [Ассоциация между сущностями. Может соединять две сущности.],
+
+  [Атрибут],
+  chen-symbol("ellipse", [Атрибут]),
+  [Свойство сущности или связи.]
+)
+
+=== Связи в Crow's foot
+#table(
+  columns: (1.2fr, 2.2fr, 2.2fr),
+  inset: 8pt,
+  align: (left + horizon, center + horizon, left + horizon),
+
+  table.header([*Тип связи*], [*Обозначение*], [*Как читать*])
+)
+
+#messages(severity: "warning")[
+  Аналогично связям в нотации Чена, чтобы схема *правильнее* передавала суть предметной области, *рекомендуется* указывать обязательность участия каждой стороны.
+]
+
+/*
+- Концептуальная модель нужна для описания предметной области: важных для задачи сущностей, их свойств, связей между ними. Эта модель *не зависит* от деталей реализации. При концептуальном проектировании, мы не задумываемся о будущей модели данных, СУБД, прикладных программах, аппаратной платформе и т.д.
+
+- Логическая модель предназначена для подготовки структуры данных в выбранной модели (например реляционной), которую затем можно реализовать в конкретной СУБД. Говоря о реляционном логическом проектировании, мы выделям состав данных, атрибуты, ключи, связи и ограничения, но не делаем это в терминах конкретной СУБД.
+
+- Физическая модель описывает, как структура данных будет реализована в конкретной СУБД. При физическом проектировании мы уточняем таблицы и их столбцы, выбираем конкретные типы данных, задаём первичные и внешние ключи, пользовательские ограничения. Цель данного этапа -- подготовить проект базы данных, который можно реализовать средствами выбранной СУБД.
+*/
+
+#pagebreak()
+
+= Оформление моделей
+== Концептуальная модель
+== Логическая модель
+== Физическая модель
+
+#pagebreak()
+
+= Оформление SQL
+
+#pagebreak()
+
+= Обратная связь
+#messages(severity: "error")[
+Нашли опечатку или ошибку?
+]
+
+#messages(severity: "warning")[
+Есть идеи по улучшению материала?
+]
+
+#messages(severity: "info")[
+Хотите предложить тему, которой можно будет дополнить материал?
+]
+
+#messages(severity: "success")[
+Пишите в #underline(link("https://t.me/vodobryshkin")[личные сообщения]) или заведите issue в #underline(link("https://github.com/vodobryshkin/db-guides")[репозитории])!
+]
+
+= Источники

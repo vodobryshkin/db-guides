@@ -1,8 +1,9 @@
 #import "@preview/primeone:1.0.0": *
+#import "@preview/fletcher:0.5.8" as cf
 
 #show: article.with(
   title: "Как оформлять модели базы данных и SQL-код",
-  subtitle: "Оформление сущностей, связей между ними и SQL",
+  subtitle: underline(link("https://github.com/vodobryshkin/db-guides")[Репозиторий c докладами]),
   authors: (
     (name: "Владимир Добрышкин", email: link("https://t.me/vodobryshkin")[t.me/vodobryshkin]),
   ),
@@ -295,12 +296,140 @@
   *рекомендую* указывать не только тип связи -- 1:1, 1:M или M:N, -- но и обязательность участия каждой стороны.
 ]
 
-== Нотация Crow's foot
+#let cf-entity(title, attributes: (), width: 36mm) = {
+  let cells = ()
+
+  for (key, attribute) in attributes {
+    cells.push(text(size: 6.5pt, weight: "bold", key))
+    cells.push(attribute)
+  }
+
+  let body = if attributes.len() == 0 {
+    align(center + horizon)[#title]
+  } else {
+    block(width: width)[
+      #grid(
+        columns: (9mm, 1fr),
+        inset: 3pt,
+        align: left + horizon,
+        stroke: none,
+
+        grid.cell(
+          colspan: 2,
+          stroke: (bottom: 0.7pt + black),
+        )[#align(center)[#strong(title)]],
+
+        ..cells,
+      )
+    ]
+  }
+
+  [
+    #set text(size: 8pt, fill: black, hyphenate: false)
+    #set par(first-line-indent: 0pt, leading: 1pt, spacing: 0pt)
+
+    #cf.diagram(
+      node-stroke: 0.7pt + black,
+      node-fill: none,
+
+      cf.node(
+        (0, 0), body,
+        width: width,
+        height: if attributes.len() == 0 { 18mm } else { auto },
+        inset: 0pt,
+        corner-radius: 0pt,
+      ),
+    )
+  ]
+}
+
+#let cf-relation(left-end, right-end, compact: false) = {
+  let node-size = if compact { 7mm } else { 9mm }
+
+  [
+    #set text(size: 8pt, fill: black, hyphenate: false)
+    #set par(first-line-indent: 0pt, leading: 1pt, spacing: 0pt)
+
+    #box(
+      width: if compact { 36mm } else { 56mm },
+      height: 15mm,
+    )[
+      #align(center + horizon)[
+        #cf.diagram(
+          spacing: if compact { 16mm } else { 28mm },
+          node-stroke: 0.7pt + black,
+          edge-stroke: 0.7pt + black,
+          node-fill: none,
+
+          cf.node(
+            (0, 0), [А],
+            name: <cf-a>,
+            width: node-size,
+            height: node-size,
+            inset: 0pt,
+            corner-radius: 0pt,
+          ),
+
+          cf.node(
+            (1, 0), [Б],
+            name: <cf-b>,
+            width: node-size,
+            height: node-size,
+            inset: 0pt,
+            corner-radius: 0pt,
+          ),
+
+          cf.edge(
+            <cf-a>, <cf-b>,
+            marks: (left-end, right-end),
+            label: [Связь],
+          ),
+        )
+      ]
+    ]
+  ]
+}
+
+#let cf-ending(mark) = [
+  #set text(size: 8pt, fill: black, hyphenate: false)
+  #set par(first-line-indent: 0pt, leading: 1pt, spacing: 0pt)
+
+  #box(width: 36mm, height: 12mm)[
+    #align(center + horizon)[
+      #cf.diagram(
+        spacing: 18mm,
+        node-stroke: 0.7pt + black,
+        edge-stroke: 0.7pt + black,
+        node-fill: none,
+
+        cf.node(
+          (1, 0), [Б],
+          name: <cf-target>,
+          width: 9mm,
+          height: 9mm,
+          inset: 0pt,
+          corner-radius: 0pt,
+        ),
+
+        cf.edge(
+          (0, 0), <cf-target>,
+          marks: (none, mark),
+        ),
+      )
+    ]
+  ]
+]
+
+== Нотация Crow’s Foot
+
 #messages(severity: "info")[
-Информация
+  Система графических обозначений для ER-моделей. Существуют разные соглашения Crow’s Foot. Здесь используется
+  вариант, описанный Терри Халпином в статье #underline(link("https://orm.net/pdf/JCM13.pdf")[
+    _Entity Relationship Modeling from an ORM Perspective: Part 3_]).
 ]
 
 === Компоненты нотации
+
 #table(
   columns: (1.2fr, 1.3fr, 2fr),
   inset: 8pt,
@@ -317,25 +446,89 @@
   ),
 
   [Сущность],
-  chen-symbol("rect", [Сущность]),
+  cf-entity([Сущность]),
   [Тип объектов предметной области, о которых нужно хранить данные.],
 
-  [Связь],
-  chen-symbol("diamond", [Связь]),
-  [Ассоциация между сущностями. Может соединять две сущности.],
-
   [Атрибут],
-  chen-symbol("ellipse", [Атрибут]),
-  [Свойство сущности или связи.]
+  cf-entity(
+    [Сущность],
+    attributes: (("", [Атрибут1]), ("", [Атрибут2]), ("", [Атрибут3]), ("", [Атрибут4])),
+  ),
+  [Свойство сущности, которое записывается внутри её прямоугольника.],
+
+  [Связь],
+  cf-relation("1?", "n?", compact: true),
+  [Ассоциация между сущностями, изображается именованной линией.],
 )
 
-=== Связи в Crow's foot
+=== Обозначение ключей
 #table(
-  columns: (1.2fr, 2.2fr, 2.2fr),
+  columns: (1.2fr, 1.3fr, 2fr),
   inset: 8pt,
-  align: (left + horizon, center + horizon, left + horizon),
+  align: (
+    left + horizon,
+    center + horizon,
+    left + horizon,
+  ),
 
-  table.header([*Тип связи*], [*Обозначение*], [*Как читать*])
+  table.header(
+    [*Компонент*],
+    [*Обозначение*],
+    [*Описание*],
+  ),
+
+  [Первичный ключ (PK)],
+  cf-entity(
+    [Сущность],
+    attributes: (("PK", [Первичный ключ]),),
+  ),
+  [Атрибут или набор атрибутов, выбранный для однозначной идентификации экземпляра сущности.],
+
+  [Внешний ключ (FK)],
+  cf-entity(
+    [Сущность],
+    attributes: (("FK", [Внешний ключ]),),
+  ),
+  [Атрибут или набор атрибутов, ссылающийся на ключ другой или этой же сущности.],
+)
+
+#message(severity: "info")[
+Если ключ составной, метку PK/FK ставят у каждого входящего в него атрибута. Для атрибута, одновременно входящего в первичный и внешний ключи, можно указать "PK, FK".]
+
+=== Окончания связей в Crow's Foot
+
+В каждом окончании два символа задают минимум и максимум. Символ ближе к сущности задаёт максимум, второй -- минимум.
+
+#table(
+  columns: (1.2fr, 1.3fr, 2fr),
+  inset: 8pt,
+  align: (
+    left + horizon,
+    center + horizon,
+    left + horizon,
+  ),
+
+  table.header(
+    [*Кратность*],
+    [*Обозначение*],
+    [*Как читать*],
+  ),
+
+  [Ноль или один (0..1)],
+  cf-ending("1?"),
+  [Кружок и черта: ноль или один Б.],
+
+  [Ровно один (1..1)],
+  cf-ending("1!"),
+  [Две черты: ровно один Б.],
+
+  [Ноль, один или несколько (0..M)],
+  cf-ending("n?"),
+  [Кружок и лапка: ноль, один или несколько Б.],
+
+  [Один или несколько (1..M)],
+  cf-ending("n!"),
+  [Черта и лапка: один или несколько Б.],
 )
 
 #messages(severity: "warning")[

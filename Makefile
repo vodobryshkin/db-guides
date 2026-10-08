@@ -29,7 +29,11 @@ fonts: .tools/fonts/.ready
 
 setup: $(TYPST) fonts
 	mkdir -p reports slides assets dist .tools/packages
-	$(TYPST) compile $(TYPST_FLAGS) templates/dependencies.typ .tools/dependencies.pdf
+	printf '%s\n' \
+		'#import "@preview/primeone:1.0.0" as primeone' \
+		'#import "@preview/unofficial-sorbonne-presentation:0.5.0" as sorbonne' \
+		> .tools/dependencies.typ
+	$(TYPST) compile $(TYPST_FLAGS) .tools/dependencies.typ .tools/dependencies.pdf
 
 $(TYPST):
 	mkdir -p "$(@D)"

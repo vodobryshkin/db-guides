@@ -32,6 +32,7 @@ setup: $(TYPST) fonts
 	printf '%s\n' \
 		'#import "@preview/primeone:1.0.0" as primeone' \
 		'#import "@preview/unofficial-sorbonne-presentation:0.5.0" as sorbonne' \
+		'#import "@preview/fletcher:0.5.8" as fletcher' \
 		> .tools/dependencies.typ
 	$(TYPST) compile $(TYPST_FLAGS) .tools/dependencies.typ .tools/dependencies.pdf
 

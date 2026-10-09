@@ -596,6 +596,8 @@
 
 Рассмотрим 10 наиболее полезных (IMHO) правил оформления из одного из самых популярных гайдов -- #underline(link("https://www.sqlstyle.guide/ru/")[_Руководство по стилю SQL от Саймона Холливелла_]).
 
+#messages(severity: "warning")[Примеры этого раздела иллюстрируют стиль SQL и используют самостоятельные условные схемы.]
+
 #let sql-examples(bad, good, stacked: false) = [
   #show raw.where(block: true): set text(size: 8pt)
 
@@ -735,13 +737,6 @@
   ```
 ]
 
-\
-\
-\
-\
-\
-\
-\
 \
 \
 \

@@ -75,9 +75,6 @@ report-%: dist/reports/%.pdf
 slides-%: dist/slides/%.pdf
 	@:
 
-intro-report: dist/reports/intro.pdf
-intro-slides: dist/slides/intro.pdf
-
 watch: $(TYPST) fonts
 	@test -n "$(FILE)" && test -f "$(FILE)" || { echo 'Укажи существующий файл: make watch FILE=slides/intro.typ'; exit 1; }
 	@test "$(suffix $(FILE))" = .typ || { echo 'Нужен файл .typ'; exit 1; }

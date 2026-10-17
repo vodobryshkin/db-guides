@@ -201,7 +201,7 @@ INSERT INTO tasks (title, priority) VALUES
   ]
 ]
 
-#slide(title: text()[Аномалия вставки])[
+#slide(title: text()[Нет проверки допустимых значений])[
   #align(center)[
     #block(width: 75%)[
       #algorithm-box(title:[Вставка "левых" значений], [
@@ -227,7 +227,7 @@ INSERT INTO tasks (title, priority) VALUES
 CREATE TABLE tasks (
     task_id BIGSERIAL PRIMARY KEY,
     title TEXT NOT NULL,
-    priority TEXT NOT NULL (СHECK priority IN ('low', 'medium', 'high'))
+    priority TEXT NOT NULL CHECK (priority IN ('low', 'medium', 'high'))
 );
           ```
         ]

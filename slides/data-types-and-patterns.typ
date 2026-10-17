@@ -636,7 +636,7 @@ CREATE TABLE addresses (
 
   - Можно переиспользовать один тип в нескольких таблицах.
 
-  - Сохраняем обычные операции исходного типа ```sql TEXT```.
+  - Сохраняем обычные операции исходного типа TEXT.
 ]
 
 #slide(title: [COMPOSITE])[
@@ -719,4 +719,301 @@ SELECT '{[09:00,13:00),[14:00,18:00)}'::TIME_MULTIRANGE;
   )[
     It’s all about figuring out what’s going to work best in a given situation.
   ]
+]
+
+= Паттерны применения типов данных
+#slide(title: [Хранить дату рождения вместо возраста])[
+  Текущий возраст меняется с течением времени. Если хранить его в таблице, значение возраста придётся обновлять каждый год для каждого человека.
+
+  Если мы знаем дату рождения, то можем вычислить текущий возраст в любой момент времени.
+
+  #v(0.4cm)
+
+  #set text(size: 0.82em)
+
+  #grid(
+    columns: (1fr, 1fr),
+    gutter: 0.3cm,
+
+    [
+      #alert-box(title: [Не храним текущий возраст], [
+        ```sql
+CREATE TABLE staff (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  age INTEGER NOT NULL
+);
+        ```
+      ])
+    ],
+
+    [
+      #example-box(title: [Храним дату рождения], [
+        ```sql
+CREATE TABLE staff (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  birth_date DATE NOT NULL
+);
+        ```
+      ])
+    ],
+  )
+
+  #v(0.4cm)
+]
+
+#slide(title: [Использовать VARCHAR или TEXT вместо CHAR(n)])[
+  - CHAR(n) дополняет короткие строки пробелами до заданной длины. Эти пробелы занимают место, поэтому хранение коротких значений получается менее компактным.
+
+  - VARCHAR(n) и TEXT не добавляют пробелы. CHAR(n) не даёт преимущества в скорости, поэтому используем VARCHAR(n) или TEXT.
+
+  #v(0.3cm)
+
+  #set text(size: 0.75em)
+
+  #grid(
+    columns: (1fr, 1fr),
+    gutter: 0.3cm,
+
+    [
+      #alert-box(title: [CHAR(n)], [
+        ```sql
+SELECT octet_length(
+  'abc'::CHAR(10)
+);
+-- 10 байт
+        ```
+      ])
+    ],
+
+    [
+      #example-box(title: [VARCHAR и TEXT], [
+        ```sql
+SELECT octet_length(
+  'abc'::VARCHAR(10)
+);
+-- 3 байта
+        ```
+      ])
+    ],
+  )
+]
+
+#slide(title: [Не хранить номер телефона числом])[
+  Номер телефона — это обозначение, а не числовая величина. Над ним не выполняют арифметические операции.
+
+  Числовой тип не сохраняет начальные нули и знак "+". Поэтому номер телефона храним строкой или DOMAIN.
+
+  #v(0.4cm)
+
+  #set text(size: 0.82em)
+
+  #grid(
+    columns: (1fr, 1fr),
+    gutter: 0.3cm,
+
+    [
+      #alert-box(title: [Не храним телефон числом], [
+        ```sql
+CREATE TABLE staff (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  phone BIGINT NOT NULL
+);
+        ```
+      ])
+    ],
+
+    [
+      #example-box(title: [Храним телефон строкой], [
+        ```sql
+CREATE TABLE staff (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL
+);
+        ```
+      ])
+    ],
+  )
+]
+
+#slide(title: [Представлять длительность с помощью INTERVAL])[
+  - TIME хранит время суток, а не длительность. Поэтому значение '02:00:00' допустимо, а '30:00:00' будет отклонено.
+
+  - Для длительности используем INTERVAL. Он позволяет хранить продолжительность больше суток и выполнять операции с временными интервалами.
+
+  #v(0.3cm)
+
+  #set text(size: 0.82em)
+
+  #grid(
+    columns: (1fr, 1fr),
+    gutter: 0.3cm,
+
+    [
+      #alert-box(title: [TIME], text(size: 0.95em)[
+        ```sql
+SELECT TIME '02:00:00';
+-- Допустимое время суток
+
+SELECT TIME '30:00:00';
+-- Ошибка
+        ```
+      ])
+    ],
+
+    [
+      #example-box(title: [INTERVAL], text(size: 0.95em)[
+        ```sql
+SELECT INTERVAL '2 hours';
+-- 02:00:00
+
+SELECT INTERVAL '30 hours';
+-- 30:00:00
+        ```
+      ])
+    ],
+  )
+]
+
+#slide(title: [Не хранить строками то, что не является строкой])[
+  - Тип данных задаёт допустимые значения и доступные операции. Если записать дату в TEXT, база будет работать с ней как со строкой.
+
+  - DATE проверяет существование даты и позволяет выполнять операции с ней. Например, прибавить день без предварительного преобразования строки.
+
+  #v(0.3cm)
+
+  #set text(size: 0.82em)
+
+  #grid(
+    columns: (1fr, 1fr),
+    gutter: 0.3cm,
+
+    [
+      #alert-box(title: [Строковое представление], text(size: 0.95em)[
+        ```sql
+SELECT '2026-02-30'::TEXT;
+-- Несуществующая дата принимается
+
+SELECT '2026-02-01'::TEXT + 1;
+-- Ошибка
+        ```
+      ])
+    ],
+
+    [
+      #example-box(title: [Подходящий тип данных], text(size: 0.95em)[
+        ```sql
+SELECT DATE '2026-02-30';
+-- Несуществующая дата отклоняется
+
+SELECT DATE '2026-02-01' + 1;
+-- 2026-02-02
+        ```
+      ])
+    ],
+  )
+]
+
+#slide(title: [Не бояться использовать TEXT])[
+    #set text(size: 0.9em)
+  - В PostgreSQL TEXT и VARCHAR хранят строки одинаково. VARCHAR(n) дополнительно проверяет длину, но не делает хранение одинаковой строки компактнее и не ускоряет работу.
+
+  - Если точного ограничения длины нет, используем TEXT. VARCHAR(n) выбираем, когда максимальная длина действительно задана требованиями.
+
+  #v(0.3cm)
+
+  #set text(size: 0.82em)
+
+  #grid(
+    columns: (1fr, 1fr),
+    gutter: 0.3cm,
+
+    [
+      #alert-box(title: [Не задаём длину без причины], [
+        ```sql
+CREATE TABLE comments (
+  id BIGSERIAL PRIMARY KEY,
+  author_name TEXT NOT NULL,
+  body VARCHAR(255) NOT NULL
+);
+        ```
+      ])
+    ],
+
+    [
+      #example-box(title: [Используем TEXT], [
+        ```sql
+CREATE TABLE comments (
+  id BIGSERIAL PRIMARY KEY,
+  author_name TEXT NOT NULL,
+  body TEXT NOT NULL
+);
+        ```
+      ])
+    ],
+  )
+]
+
+#slide(title: [Представлять денежные суммы с помощью NUMERIC])[
+  - MONEY зависит от денежной локали. Например при российской локали суммы отображаются в рублях. Сам тип не сохраняет валюту, а смена локали не выполняет конвертацию.
+
+  - REAL и DOUBLE PRECISION хранят десятичные значения приближённо. Для денежных расчётов, требующих точности, используем NUMERIC.
+
+  #v(0.3cm)
+
+  #set text(size: 0.82em)
+
+  #grid(
+    columns: (1fr, 1fr),
+    gutter: 0.3cm,
+
+    [
+      #alert-box(title: [MONEY], text(size: 0.95em)[
+        ```sql
+CREATE TABLE payments (
+  id BIGSERIAL PRIMARY KEY,
+  payer_name TEXT NOT NULL,
+  amount MONEY NOT NULL
+);
+        ```
+      ])
+    ],
+
+    [
+      #example-box(title: [NUMERIC], text(size: 0.95em)[
+        ```sql
+CREATE TABLE payments (
+  id BIGSERIAL PRIMARY KEY,
+  payer_name TEXT NOT NULL,
+  amount NUMERIC(12, 2) NOT NULL
+);
+        ```
+      ])
+    ],
+  )
+]
+
+#ending-slide(
+    title: [Спасибо за внимание!],
+    subtitle: [Вопросы?],
+    contact: (link("https://t.me/vodobryshkin")[t.me/vodobryshkin], link("https://github.com/vodobryshkin")[github.com/vodobryshkin],),
+)
+
+#slide(title: [Источники])[
+  #set text(size: 0.75em)
+
+  - E. F. Codd. #link("https://courses.washington.edu/geog482/resource/Codd_1981_Data_Model.pdf")[Data Models in Database Management]. 1980.
+
+  - Michael Stonebraker. #link("https://dsf.berkeley.edu/papers/Informix/www.informix.com/informix/corpinfo/zines/whitpprs/illuswp/wave.htm")[Object-Relational DBMS — The Next Wave].
+
+  - #link("https://www.postgresql.org/docs/18/datatype.html")[Документация PostgreSQL 18. Глава 8. Data Types].
+
+  - Grant Fritchey. #link("https://www.red-gate.com/simple-talk/databases/postgresql/learning-postgresql-with-grant-user-defined-types/")[How User-Defined Types work in PostgreSQL]. Simple Talk.
+
+  - PostgreSQL Wiki. #link("https://wiki.postgresql.org/wiki/Don't_Do_This")[Don't Do This].
+
+  - Laurenz Albe. #link("https://www.postgresql.eu/events/pgconfeu2025/sessions/session/6838-dont-do-that/")[Don't do that!]. PGConf.EU 2025. Доклад и слайды.
 ]

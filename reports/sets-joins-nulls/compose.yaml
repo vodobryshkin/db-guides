@@ -1,0 +1,23 @@
+name: report-example-db
+
+services:
+  db:
+    image: postgres:18
+    network_mode: bridge
+    environment:
+      POSTGRES_DB: exams-db
+      POSTGRES_USER: report
+      POSTGRES_PASSWORD: report
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U report -d exams-db"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:

@@ -21,18 +21,23 @@ TYPST_FLAGS := --root . --font-path .tools/fonts --ignore-system-fonts --package
 REPORTS := $(patsubst reports/%.typ,dist/reports/%.pdf,$(wildcard reports/*.typ))
 SLIDES := $(patsubst slides/%.typ,dist/slides/%.pdf,$(wildcard slides/*.typ))
 
-.PHONY: all setup fonts reports slides watch clean help FORCE intro-report intro-slides
+.PHONY: all setup fonts packages reports slides watch clean help FORCE intro-report intro-slides
 all: reports slides
 reports: $(REPORTS)
 slides: $(SLIDES)
 fonts: .tools/fonts/.ready
 
-setup: $(TYPST) fonts
-	mkdir -p reports slides assets dist .tools/packages
+setup: packages
+	mkdir -p reports slides assets dist
+
+packages: $(TYPST) fonts
+	mkdir -p .tools/packages
 	printf '%s\n' \
 		'#import "@preview/primeone:1.0.0" as primeone' \
 		'#import "@preview/unofficial-sorbonne-presentation:0.5.0" as sorbonne' \
 		'#import "@preview/fletcher:0.5.8" as fletcher' \
+		'#import "@preview/cetz:0.5.2" as cetz' \
+		'#import "@preview/cetz-venn:0.2.0" as cetz-venn' \
 		> .tools/dependencies.typ
 	$(TYPST) compile $(TYPST_FLAGS) .tools/dependencies.typ .tools/dependencies.pdf
 
@@ -62,11 +67,11 @@ $(TYPST):
 	touch "$@"
 
 FORCE:
-dist/reports/%.pdf: reports/%.typ FORCE | $(TYPST) fonts
+dist/reports/%.pdf: reports/%.typ FORCE | packages
 	mkdir -p "$(@D)"
 	$(TYPST) compile $(TYPST_FLAGS) "$<" "$@"
 
-dist/slides/%.pdf: slides/%.typ FORCE | $(TYPST) fonts
+dist/slides/%.pdf: slides/%.typ FORCE | packages
 	mkdir -p "$(@D)"
 	$(TYPST) compile $(TYPST_FLAGS) "$<" "$@"
 
@@ -75,7 +80,7 @@ report-%: dist/reports/%.pdf
 slides-%: dist/slides/%.pdf
 	@:
 
-watch: $(TYPST) fonts
+watch: packages
 	@test -n "$(FILE)" && test -f "$(FILE)" || { echo 'Укажи существующий файл: make watch FILE=slides/intro.typ'; exit 1; }
 	@test "$(suffix $(FILE))" = .typ || { echo 'Нужен файл .typ'; exit 1; }
 	mkdir -p "dist/$(dir $(FILE))"
@@ -85,4 +90,12 @@ clean:
 	rm -rf dist
 
 help:
-	@printf '%s\n' 'make setup             — скачать Typst, шрифты и пакеты' 'make                   — собрать всё' 'make reports / slides  — собрать доклады / презентации' 'make report-ИМЯ        — собрать reports/ИМЯ.typ' 'make slides-ИМЯ        — собрать slides/ИМЯ.typ' 'make watch FILE=...    — пересобирать при изменениях' 'make clean             — удалить только dist/'
+	@printf '%s\n' \
+		'make setup             — скачать Typst, шрифты и пакеты' \
+		'make packages          — подкачать пакеты Typst' \
+		'make                   — собрать всё' \
+		'make reports / slides  — собрать доклады / презентации' \
+		'make report-ИМЯ        — собрать reports/ИМЯ.typ' \
+		'make slides-ИМЯ        — собрать slides/ИМЯ.typ' \
+		'make watch FILE=...    — пересобирать при изменениях' \
+		'make clean             — удалить только dist/'

@@ -3,79 +3,146 @@
 #import "@preview/cetz:0.5.2"
 #import "@preview/cetz-venn:0.2.0"
 
-// Исходные строки.
+#let join-groups = (
+  (group_id: 1, code: "P3221", admin_id: 1),
+  (group_id: 2, code: "P3222", admin_id: 4),
+  (group_id: 3, code: "P3223", admin_id: none),
+)
+
 #let join-students = (
-  (tag: "S1", key: 1),
-  (tag: "S3", key: 3),
-  (tag: "S4", key: 4),
+  (student_id: 1, name: "Иван", group_id: 1),
+  (student_id: 2, name: "Петр", group_id: 1),
+  (student_id: 3, name: "Федор", group_id: 1),
+  (student_id: 4, name: "Дарья", group_id: 2),
+  (student_id: 5, name: "Елена", group_id: 2),
+  (student_id: 6, name: "Егор", group_id: 2),
+  (student_id: 7, name: "Анна", group_id: 1),
+  (student_id: 8, name: "Дмитрий", group_id: 2),
 )
 
-#let join-attempts = (
-  (tag: "A1", key: 1),
-  (tag: "A2", key: 1),
-  (tag: "A7", key: 4),
-  (tag: "A9", key: 5),
+#let join-teachers = (
+  (teacher_id: 1),
+  (teacher_id: 2),
+  (teacher_id: 3),
 )
 
-#let join-colors = (
-  rgb("#BFE3D2"),
-  rgb("#FFE3A3"),
-  rgb("#D9CDF0"),
-  rgb("#F5C7AC"),
-  rgb("#BFDDF2"),
-)
+// fields — исходные столбцы, output — столбцы результата.
+#let join-admin-groups = join-groups.map(g => (
+  key: g.admin_id,
+  fields: (
+    ("group_id", g.group_id),
+    ("code", g.code),
+    ("admin_id", g.admin_id),
+  ),
+  output: (
+    ("group_id", g.group_id),
+    ("code", g.code),
+  ),
+))
 
-// Одна строка.
-#let join-chip(row) = {
-  let label = if row == none {
-    text(size: 6pt)[NULL]
+#let join-admin-students = join-students.map(s => (
+  key: s.student_id,
+  fields: (
+    ("student_id", s.student_id),
+    ("name", s.name),
+  ),
+))
+
+#let join-member-groups = join-groups.map(g => (
+  key: g.group_id,
+  fields: (
+    ("group_id", g.group_id),
+    ("code", g.code),
+  ),
+))
+
+#let join-member-students = join-students.map(s => (
+  key: s.group_id,
+  fields: (
+    ("student_id", s.student_id),
+    ("name", s.name),
+    ("group_id", s.group_id),
+  ),
+  output: (
+    ("student_id", s.student_id),
+    ("name", s.name),
+  ),
+))
+
+#let join-cross-groups = join-groups.map(g => (
+  key: g.group_id,
+  fields: (("group_id", g.group_id),),
+))
+
+#let join-cross-teachers = join-teachers.map(t => (
+  key: t.teacher_id,
+  fields: (("teacher_id", t.teacher_id),),
+))
+
+#let join-value(value) = if value == none {
+  "NULL"
+} else {
+  str(value)
+}
+
+#let join-chip(row, output: false) = {
+  let fields = if row == none {
+    ()
+  } else if output {
+    row.at("output", default: row.fields)
   } else {
-    [
-      #text(size: 7pt)[#row.tag]
-      #linebreak()
-      #text(size: 5.5pt)[id = #row.key]
-    ]
+    row.fields
   }
 
   rect(
     width: 25mm,
-    height: 9mm,
+    height: if fields.len() > 2 { 11mm } else { 9mm },
     inset: 0pt,
     fill: white,
     stroke: 0.5pt + black,
     radius: 0pt,
   )[
-    #set text(fill: black, weight: "regular")
-    #set par(first-line-indent: 0pt, leading: 0pt)
+    #set text(size: 6.5pt, fill: black, weight: "regular")
+    #set par(first-line-indent: 0pt, leading: 0pt, spacing: 0pt)
 
-    #align(center + horizon)[#label]
+    #align(center + horizon)[
+      #if row == none {
+        [NULL]
+      } else {
+        stack(
+          dir: ttb,
+          spacing: 0.5mm,
+          ..fields.map(field => [
+            #field.at(0) = #join-value(field.at(1))
+          ]),
+        )
+      }
+    ]
   ]
 }
 
-// Две строки, образующие пару.
 #let join-pair(lhs, rhs) = grid(
   columns: (auto, auto),
   column-gutter: 0pt,
-  align: center + horizon,
-  join-chip(lhs),
-  join-chip(rhs),
-)
-// Вертикальный список исходных строк.
-#let join-source(title, rows) = stack(
-  dir: ttb,
-  spacing: 2mm,
-  text(size: 8pt, weight: "bold", title),
-  ..rows.map(join-chip),
+  join-chip(lhs, output: true),
+  join-chip(rhs, output: true),
 )
 
-// Формирование результата соединения.
-// Условие: lhs.key == rhs.key.
+#let join-source(title, rows) = stack(
+  dir: ttb,
+  spacing: 1.5mm,
+  text(size: 8pt, weight: "bold", title),
+  ..rows.map(row => join-chip(row)),
+)
+
 #let join-matches(lhs, rhs, kind) = {
   let pairs = ()
 
   for l in lhs {
-    let matches = rhs.filter(
-      r => kind == "cross" or l.key == r.key
+    let matches = rhs.filter(r =>
+      kind == "cross" or (
+        l.key != none and r.key != none and l.key == r.key
+      )
     )
 
     for r in matches {
@@ -91,9 +158,11 @@
 
   if kind == "right" or kind == "full" {
     for r in rhs {
-      let matches = lhs.filter(l => l.key == r.key)
+      let matched = lhs.any(l =>
+        l.key != none and r.key != none and l.key == r.key
+      )
 
-      if matches.len() == 0 {
+      if not matched {
         pairs.push((none, r))
       }
     }
@@ -102,40 +171,42 @@
   pairs
 }
 
-// Готовая схема.
-// kind: "cross", "inner", "left", "right", "full".
 #let join-picture(
   kind,
-  students: join-students,
-  attempts: join-attempts,
+  lhs: join-admin-groups,
+  rhs: join-admin-students,
+  lhs-title: "groups (g)",
+  rhs-title: "students (s)",
+  title: none,
+  condition: [Условие: `g.admin_id = s.student_id`],
 ) = {
   assert(
     ("cross", "inner", "left", "right", "full").contains(kind),
     message: "Неизвестный вид JOIN",
   )
 
-  let pairs = join-matches(students, attempts, kind)
-
-  let result = if pairs.len() == 0 {
-    text(size: 8pt)[Нет строк]
-  } else {
-    grid(
-      columns: 1,
-      row-gutter: 2mm,
-      align: center + horizon,
-      ..pairs.map(pair => join-pair(..pair)),
-    )
-  }
+  let pairs = join-matches(lhs, rhs, kind)
 
   block(
     breakable: false,
-    above: 4mm,
-    below: 4mm,
+    above: 3mm,
+    below: 3mm,
   )[
-    #set par(first-line-indent: 0pt)
+    #set par(first-line-indent: 0pt, spacing: 0pt)
 
     #align(center)[
-      #text(size: 10pt, weight: "bold")[#upper(kind) JOIN]
+      #text(size: 10pt, weight: "bold")[
+        #if title == none {
+          [#upper(kind) JOIN]
+        } else {
+          title
+        }
+      ]
+
+      #if condition != none {
+        v(1.5mm)
+        text(size: 8pt, condition)
+      }
 
       #v(3mm)
 
@@ -148,17 +219,26 @@
           columns: (auto, auto),
           column-gutter: 4mm,
           align: center + top,
-          join-source("students", students),
-          join-source("attempts", attempts),
+          join-source(lhs-title, lhs),
+          join-source(rhs-title, rhs),
         ),
 
         text(size: 18pt)[→],
 
         stack(
           dir: ttb,
-          spacing: 2mm,
+          spacing: 1.5mm,
           text(size: 8pt, weight: "bold")[Результат],
-          result,
+
+          if pairs.len() == 0 {
+            text(size: 8pt)[Нет строк]
+          } else {
+            grid(
+              columns: 1,
+              row-gutter: 1.5mm,
+              ..pairs.map(pair => join-pair(..pair)),
+            )
+          },
         ),
       )
     ]
@@ -726,13 +806,11 @@ JOIN часто визуализируют с помощью диаграмм Э
 === Правильный выбор визуализации
 Вместо этого лучше визуализировать JOIN'ы именно так, как выглядят их результаты.
 
-Рассмотрим визуализацию на примере LEFT JOIN:
+Далее рассмотрим визуализации на примерах конкретных видов JOIN. На схемах покажем исходные строки и результат соединения, чтобы было видно, какие строки образуют пары и что происходит со строками без соответствий.
 
-#join-picture("left")
+#pagebreak()
 
-== Виды JOIN
-
-=== CROSS JOIN -- перекрёстное соединение
+== CROSS JOIN -- перекрёстное соединение
 
 Формирует все возможные пары строк двух таблиц. Условие соединения не задаётся.
 
@@ -761,7 +839,18 @@ SELECT g.group_id, t.teacher_id
         3 |          3
 ```
 
-=== INNER JOIN -- внутреннее соединение
+#join-picture(
+  "cross",
+  lhs: join-cross-groups,
+  rhs: join-cross-teachers,
+  lhs-title: "groups (g)",
+  rhs-title: "teachers (t)",
+  condition: none,
+)
+
+#pagebreak()
+
+== INNER JOIN -- внутреннее соединение
 
 Возвращает только пары строк, удовлетворяющие условию соединения.
 
@@ -784,11 +873,15 @@ SELECT g.group_id, g.code, s.student_id, s.name
         2 | P3222 |          4 | Дарья
 ```
 
+#join-picture("inner")
+
 #message(severity: "info")[
-Слово `INNER` можно опустить, обычный `JOIN` означает `INNER JOIN`.
+  Слово `INNER` можно опустить, обычный `JOIN` означает `INNER JOIN`.
 ]
 
-=== LEFT JOIN -- левое внешнее соединение
+#pagebreak()
+
+== LEFT JOIN -- левое внешнее соединение
 
 Возвращает подходящие пары и сохраняет строки левой таблицы без соответствий. Для них столбцы правой стороны заполняются `NULL`.
 
@@ -810,10 +903,13 @@ SELECT g.group_id, g.code, s.student_id, s.name
         1 | P3221 |          1 | Иван
         2 | P3222 |          4 | Дарья
         3 | P3223 |            |
-
 ```
 
-=== RIGHT JOIN -- правое внешнее соединение
+#join-picture("left")
+
+#pagebreak()
+
+== RIGHT JOIN -- правое внешнее соединение
 
 Возвращает подходящие пары и сохраняет строки правой таблицы без соответствий. Для них столбцы левой стороны заполняются `NULL`.
 
@@ -842,11 +938,15 @@ SELECT g.group_id, g.code, s.student_id, s.name
           |       |          8 | Дмитрий
 ```
 
+#join-picture("right")
+
 #messages(severity: "info")[
   Если задачу можно выразить и через `LEFT JOIN`, и через `RIGHT JOIN`, для читаемости удобно придерживаться `LEFT JOIN`: слева располагается таблица, все строки которой нужно сохранить, а справа -- дополнительные сведения. Такой порядок проще читать последовательно, слева направо.
 ]
 
-=== FULL JOIN -- полное внешнее соединение
+#pagebreak()
+
+== FULL JOIN -- полное внешнее соединение
 
 Возвращает подходящие пары и сохраняет строки без соответствий с обеих сторон. Столбцы отсутствующей стороны заполняются `NULL`.
 
@@ -874,11 +974,15 @@ SELECT g.group_id, g.code, s.student_id, s.name
           |       |          8 | Дмитрий
 ```
 
+#join-picture("full")
+
 #messages(severity: "info")[
-  `LEFT JOIN`, `RIGHT JOIN` и `FULL JOIN` еще часто называают `OUTER` JOINS, потому что такое соединение сохраняет не только подходящие пары, но и строки без соответствий с одной или обеих сторон. Слово необязательно, поскольку `LEFT`, `RIGHT` и `FULL` уже обозначают внешнее соединение. Например, `LEFT JOIN` и `LEFT OUTER JOIN` равнозначны.
+  `LEFT JOIN`, `RIGHT JOIN` и `FULL JOIN` ещё часто называют `OUTER JOINS`, потому что такое соединение сохраняет не только подходящие пары, но и строки без соответствий с одной или обеих сторон. Слово необязательно, поскольку `LEFT`, `RIGHT` и `FULL` уже обозначают внешнее соединение. Например, `LEFT JOIN` и `LEFT OUTER JOIN` равнозначны.
 ]
 
-=== NATURAL JOIN -- естественное соединение
+#pagebreak()
+
+== NATURAL JOIN -- естественное соединение
 
 Автоматически задаёт условие равенства по всем одноимённым столбцам двух таблиц. Общие столбцы представлены в результате по одному разу.
 
@@ -904,12 +1008,25 @@ SELECT group_id, code, student_id, name
         2 | P3222 |          8 | Дмитрий
 ```
 
+#join-picture(
+  "inner",
+  lhs: join-member-groups,
+  rhs: join-member-students,
+  lhs-title: "groups",
+  rhs-title: "students",
+  title: [NATURAL JOIN],
+  condition: [Условие: `groups.group_id = students.group_id`],
+)
+
 #messages(severity: "info")[
-Без уточнения `NATURAL JOIN` означает `NATURAL INNER JOIN`. Также допустимы `NATURAL LEFT JOIN`, `NATURAL RIGHT JOIN` и `NATURAL FULL JOIN`.
+  Без уточнения `NATURAL JOIN` означает `NATURAL INNER JOIN`. Также допустимы `NATURAL LEFT JOIN`, `NATURAL RIGHT JOIN` и `NATURAL FULL JOIN`.
 ]
+
 #messages(severity: "warning")[
   `NATURAL JOIN` учитывает все одноимённые столбцы, а не только ключи. Добавление нового одноимённого столбца может изменить условие соединения. Явные `ON` или `USING` позволяют избежать такой зависимости.
 ]
+
+#pagebreak()
 
 = Обратная связь
 #messages(severity: "error")[Нашли опечатку или ошибку?]

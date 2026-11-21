@@ -4,14 +4,30 @@
 
 ## Сборка
 
-Для сборки нужны Linux (x86_64 или aarch64), `make`, `curl`, `tar`.
+Для сборки нужны `make`, `curl`, `tar` и поддержка распаковки XZ. Поддерживаются Linux и macOS на x86_64 и ARM64, а также Windows через MSYS2.
+
+На macOS `make` можно установить вместе с Command Line Tools:
+
+```sh
+xcode-select --install
+```
+
+На Windows установите [MSYS2](https://www.msys2.org/) и выполните в его терминале:
+
+```sh
+pacman -S --needed make curl tar unzip xz
+```
+
+Все команды сборки на Windows выполняйте в терминале MSYS2.
+
+Для сборки перейдите в корень репозитория и выполните:
 
 ```sh
 make setup
 make
 ```
 
-Готовые PDF сохраняются в `dist/reports/` и `dist/slides/`.
+Typst, шрифты и пакеты скачиваются автоматически. Готовые PDF сохраняются в `dist/reports/` и `dist/slides/`.
 
 Основные команды:
 

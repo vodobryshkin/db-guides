@@ -3,15 +3,39 @@
 .SECONDARY:
 
 TYPST_VERSION := 0.15.1
-TYPST := .tools/typst-$(TYPST_VERSION)/typst
+
+SYSTEM := $(shell uname -s)
 ARCH := $(shell uname -m)
-ifeq ($(ARCH),x86_64)
-TYPST_TARGET := x86_64-unknown-linux-musl
-else ifeq ($(ARCH),aarch64)
-TYPST_TARGET := aarch64-unknown-linux-musl
+
+ifneq ($(filter x86_64 amd64 AMD64,$(ARCH)),)
+TYPST_ARCH := x86_64
+else ifneq ($(filter aarch64 arm64 ARM64,$(ARCH)),)
+TYPST_ARCH := aarch64
 else
-$(error For now only x86_64 and aarch64 are supported; detected $(ARCH))
+$(error Unsupported architecture: $(ARCH))
 endif
+
+ifeq ($(SYSTEM),Linux)
+TYPST_PLATFORM := unknown-linux-musl
+else ifeq ($(SYSTEM),Darwin)
+TYPST_PLATFORM := apple-darwin
+else ifneq ($(filter MINGW% MSYS% CYGWIN%,$(SYSTEM)),)
+TYPST_PLATFORM := pc-windows-msvc
+else
+$(error Unsupported system: $(SYSTEM). On Windows, run make in MSYS2)
+endif
+
+TYPST_TARGET := $(TYPST_ARCH)-$(TYPST_PLATFORM)
+
+ifeq ($(TYPST_PLATFORM),pc-windows-msvc)
+TYPST_EXT := .exe
+TYPST_ARCHIVE_EXT := zip
+else
+TYPST_EXT :=
+TYPST_ARCHIVE_EXT := tar.xz
+endif
+
+TYPST := .tools/typst-$(TYPST_VERSION)-$(TYPST_TARGET)/typst$(TYPST_EXT)
 
 CURL := curl --fail --location --silent --show-error --retry 3 --connect-timeout 15
 GOOGLE_FONTS := https://raw.githubusercontent.com/google/fonts/2eb0b48d5f760f62e286216f0859a8c540dbc1bd/ofl
@@ -21,7 +45,7 @@ TYPST_FLAGS := --root . --font-path .tools/fonts --ignore-system-fonts --package
 REPORTS := $(patsubst reports/%.typ,dist/reports/%.pdf,$(wildcard reports/*.typ))
 SLIDES := $(patsubst slides/%.typ,dist/slides/%.pdf,$(wildcard slides/*.typ))
 
-.PHONY: all setup fonts packages reports slides watch clean help FORCE intro-report intro-slides
+.PHONY: all setup fonts packages reports slides watch clean help FORCE
 all: reports slides
 reports: $(REPORTS)
 slides: $(SLIDES)
@@ -43,8 +67,13 @@ packages: $(TYPST) fonts
 
 $(TYPST):
 	mkdir -p "$(@D)"
-	$(CURL) -o "$(@D)/typst.tar.xz" https://github.com/typst/typst/releases/download/v$(TYPST_VERSION)/typst-$(TYPST_TARGET).tar.xz
+	$(CURL) -o "$(@D)/typst.$(TYPST_ARCHIVE_EXT)" https://github.com/typst/typst/releases/download/v$(TYPST_VERSION)/typst-$(TYPST_TARGET).$(TYPST_ARCHIVE_EXT)
+ifeq ($(TYPST_ARCHIVE_EXT),zip)
+	unzip -o "$(@D)/typst.zip" -d "$(@D)"
+	mv "$(@D)/typst-$(TYPST_TARGET)/typst.exe" "$@"
+else
 	tar --no-same-owner -xJf "$(@D)/typst.tar.xz" --strip-components=1 -C "$(@D)"
+endif
 	"$@" --version
 
 .tools/fonts/.ready:
@@ -67,6 +96,7 @@ $(TYPST):
 	touch "$@"
 
 FORCE:
+
 dist/reports/%.pdf: reports/%.typ FORCE | packages
 	mkdir -p "$(@D)"
 	$(TYPST) compile $(TYPST_FLAGS) "$<" "$@"
@@ -77,6 +107,7 @@ dist/slides/%.pdf: slides/%.typ FORCE | packages
 
 report-%: dist/reports/%.pdf
 	@:
+
 slides-%: dist/slides/%.pdf
 	@:
 

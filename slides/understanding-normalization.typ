@@ -1,5 +1,33 @@
 #import "@preview/unofficial-sorbonne-presentation:0.3.1": *
 
+#show regex("[0-9]+ / [0-9]+"): it => context {
+  if here().position().y > 15cm {
+    counter(page).display("1 / 1", both: true)
+  } else {
+    it
+  }
+}
+
+#set page(background: context {
+  let page-no = here().page()
+  let marker = query(<uni-pres-slide-start>)
+    .find(it => it.location().page() == page-no)
+
+  if marker != none and marker.value.is-special {
+    place(
+      bottom + right,
+      dx: -50pt,
+      dy: -16pt,
+      text(
+        size: 13pt,
+        fill: white,
+        bottom-edge: "baseline",
+        counter(page).display("1 / 1", both: true),
+      ),
+    )
+  }
+})
+
 #let code-ink = rgb("#334A52")
 #let code-muted = rgb("#5F6F75")
 
